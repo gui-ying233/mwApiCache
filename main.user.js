@@ -7,6 +7,10 @@
 // @license      MIT
 // @match        zh.moegirl.org.cn/*
 // @match        mzh.moegirl.org.cn/*
+// @match        commons.moegirl.org.cn/*
+// @match        library.moegirl.org.cn/*
+// @match        en.moegirl.org.cn/*
+// @match        ja.moegirl.org.cn/*
 // @icon         http://moegirl.org.cn/favicon.ico
 // @supportURL   https://github.com/gui-ying233/mwApiCache/issues
 // @run-at       document-start
