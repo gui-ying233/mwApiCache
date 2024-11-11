@@ -8,7 +8,7 @@
 // @match        zh.moegirl.org.cn/*
 // @match        mzh.moegirl.org.cn/*
 // @icon         http://moegirl.org.cn/favicon.ico
-// @supportURL   https://github.com/gui-ying233/mwApiCache/issuess
+// @supportURL   https://github.com/gui-ying233/mwApiCache/issues
 // @run-at       document-start
 // @grant        none
 // ==/UserScript==
