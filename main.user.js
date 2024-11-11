@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      1.3.0
+// @version      1.3.1
 // @description  缓存部分Api请求结果7日以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -39,7 +39,10 @@
 		for (const key in localStorage) {
 			if (!key.startsWith("mwApiCache-")) continue;
 			const cache = JSON.parse(localStorage.getItem(key));
-			if (timestamp - cache.timestamp > 1000 * 60 * 60 * 24 * 7) {
+			if (
+				timestamp - cache.timestamp > 1000 * 60 * 60 * 24 * 7 ||
+				cache.ver !== ver
+			) {
 				debug("Del", key);
 				localStorage.removeItem(key);
 			}
@@ -49,11 +52,7 @@
 			const cache = JSON.parse(
 				localStorage.getItem(`mwApiCache-${_arg}`)
 			);
-			if (
-				!cache ||
-				cache.ver !== ver ||
-				timestamp - cache.timestamp > 1000 * 60 * 60 * 24 * 7
-			) {
+			if (!cache) {
 				const res = method.call(t, arg);
 				res.then(_res => {
 					debug("Set", _arg, JSON.stringify(_res));
