@@ -8,8 +8,9 @@
 // @match        zh.moegirl.org.cn/*
 // @match        mzh.moegirl.org.cn/*
 // @icon         http://moegirl.org.cn/favicon.ico
-// @run-at      document-start
 // @supportURL   https://github.com/gui-ying233/mwApiCache/issuess
+// @run-at       document-start
+// @grant        none
 // ==/UserScript==
 
 (() => {
@@ -60,9 +61,9 @@
 				.promise()
 				.then(() => cache.res);
 		};
-		window.mediaWiki.Api.prototype.get = function () {
-			const args = JSON.stringify(arguments[0]);
-			switch (args) {
+		window.mediaWiki.Api.prototype.get = function (...args) {
+			const arg = JSON.stringify(args[0]);
+			switch (arg) {
 				case `{"action":"query","ususers":"${userName}","meta":["userinfo","siteinfo"],"list":["users"],"uiprop":["rights"],"siprop":["specialpagealiases"],"usprop":["blockinfo"]}`:
 				case '{"action":"query","meta":"siteinfo","siprop":"specialpagealiases","formatversion":2,"uselang":"content","maxage":3600}':
 				case '{"action":"query","meta":"userinfo","uiprop":["groups","rights"]}':
@@ -71,26 +72,28 @@
 					"wgNamespaceNumber"
 				)}","Editnotice-${cfg.get("wgNamespaceNumber")}-${cfg
 					.get("wgPageName")
-					.replace(/_/g, " ")
+					.replaceAll("_", " ")
 					.replace(
-						cfg.get("wgFormattedNamespaces")[
-							cfg.get("wgNamespaceNumber")
-						] + ":",
+						`${
+							cfg.get("wgFormattedNamespaces")[
+								cfg.get("wgNamespaceNumber")
+							]
+						}:`,
 						""
 					)}"],"amenableparser":1}`:
-					return getCache(this, arguments[0]);
+					return getCache(this, args[0]);
 				default:
 					if (
 						/{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}/.test(
-							args
+							arg
 						)
 					)
-						return getCache(this, arguments[0]);
+						return getCache(this, args[0]);
 					console.debug(
-						`%cmwApiCache-Ign\n${args}`,
+						`%cmwApiCache-Ign\n${arg}`,
 						"border-left:1em solid #4E3DA4;background-color:#3C2D73;color:#D9D9D9;padding:1em"
 					);
-					return originalMediaWikiApiGet.apply(this, arguments);
+					return originalMediaWikiApiGet.apply(this, args);
 			}
 		};
 	}, 5);
