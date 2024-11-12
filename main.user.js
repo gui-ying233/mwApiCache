@@ -100,9 +100,6 @@
 					if (
 						/{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}/.test(
 							arg
-						) ||
-						arg.startsWith(
-							'{"action":"query","assertuser":"${userName}","list":"allusers","augroup":"special-contributor|goodeditor|manually-confirmed|extendedconfirmed|ipblock-exempt|flood|bot|file-maintainer|techeditor|honoredmaintainer|patroller|interface-admin|sysop|suppress|checkuser|bureaucrat|staff","aulimit":"max","auprop":"groups","aufrom":"'
 						)
 					)
 						return getCache(t, method, args[0]);
