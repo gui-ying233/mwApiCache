@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      1.3.1
-// @description  缓存部分Api请求结果7日以提升速度减少WAF几率
+// @version      2.0.0
+// @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
 // @match        zh.moegirl.org.cn/*
@@ -20,7 +20,7 @@
 (() => {
 	"use strict";
 	if (new URLSearchParams(window.location.search).get("safemode")) return;
-	const ver = 1;
+	const ver = 2;
 	const id = setInterval(async () => {
 		if (!window.mediaWiki?.Api?.prototype) return;
 		clearInterval(id);
@@ -39,28 +39,24 @@
 		for (const key in localStorage) {
 			if (!key.startsWith("mwApiCache-")) continue;
 			const cache = JSON.parse(localStorage.getItem(key));
-			if (
-				timestamp - cache.timestamp > 1000 * 60 * 60 * 24 * 7 ||
-				cache.ver !== ver
-			) {
+			if (cache.timestamp < timestamp || cache.ver !== ver) {
 				debug("Del", key);
 				localStorage.removeItem(key);
 			}
 		}
-		const getCache = (t, method, arg) => {
+		const getCache = (t, method, arg, day = 7) => {
 			const _arg = JSON.stringify(arg);
-			const cache = JSON.parse(
-				localStorage.getItem(`mwApiCache-${_arg}`)
-			);
+			const storage = day ? localStorage : sessionStorage;
+			const cache = JSON.parse(storage.getItem(`mwApiCache-${_arg}`));
 			if (!cache) {
 				const res = method.call(t, arg);
 				res.then(_res => {
 					debug("Set", _arg, JSON.stringify(_res));
-					localStorage.setItem(
+					storage.setItem(
 						`mwApiCache-${_arg}`,
 						JSON.stringify({
 							ver,
-							timestamp,
+							timestamp: timestamp + 1000 * 60 * 60 * 24 * day,
 							res: _res,
 						})
 					);
@@ -82,6 +78,7 @@
 				case `{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`:
 				case '{"action":"paraminfo","modules":"main","helpformat":"html","uselang":"zh"}':
 				case '{"action":"paraminfo","modules":"json","helpformat":"html","uselang":"zh"}':
+					return getCache(t, method, args[0]);
 				case `{"action":"query","meta":"allmessages","ammessages":["Editnotice-${cfg.get(
 					"wgNamespaceNumber"
 				)}","Editnotice-${cfg.get("wgNamespaceNumber")}-${cfg
@@ -95,7 +92,7 @@
 						}:`,
 						""
 					)}"],"amenableparser":1}`:
-					return getCache(t, method, args[0]);
+					return getCache(t, method, args[0], 3);
 				default:
 					if (
 						/{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}/.test(
@@ -103,6 +100,8 @@
 						)
 					)
 						return getCache(t, method, args[0]);
+					if (args[0]?.action === "compare")
+						return getCache(t, method, args[0], 0);
 					debug("Ign", arg);
 					return method.apply(t, args);
 			}
