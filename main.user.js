@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.0.0
+// @version      3.1.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -28,42 +28,83 @@
 		await window.$.ready;
 		const cfg = window.mediaWiki.config;
 		const userName = cfg.get("wgUserName");
-		const debug = (type, ...args) => {
+		const log = (type, ...args) => {
 			console.debug(
 				`%cmwApiCache-${type}\n${args.join("\n")}`,
 				"border-left:1em solid #4E3DA4;background-color:#3C2D73;color:#D9D9D9;padding:1em"
 			);
 		};
+		window.addEventListener(
+			"storage",
+			e => {
+				if (!e.key.startsWith("mwApiCache-")) return;
+				if (e.newValue) {
+					e.storageArea.setItem(e.key, e.newValue);
+					log("Set", e.key, e.newValue);
+				} else {
+					e.storageArea.removeItem(e.key);
+					log("Del", e.key);
+				}
+			},
+			{ passive: true }
+		);
 		const timestamp = Date.now();
-		for (const key in localStorage) {
+		for (const key in window.localStorage) {
 			if (!key.startsWith("mwApiCache-")) continue;
-			const cache = JSON.parse(localStorage.getItem(key));
+			const cache = JSON.parse(window.localStorage.getItem(key));
 			if (cache.timestamp < timestamp || cache.ver !== ver) {
-				debug("Del", key);
-				localStorage.removeItem(key);
+				log("Del", key);
+				window.localStorage.removeItem(key);
 			}
 		}
+		const bc = new BroadcastChannel("mwApiCache");
+		bc.addEventListener("message", e => {
+			if (e.data === "init")
+				Object.keys(sessionStorage).forEach(
+					key =>
+						key.startsWith("mwApiCache-") &&
+						bc.postMessage({
+							key: key.replace("mwApiCache-", ""),
+							value: JSON.parse(sessionStorage.getItem(key)),
+						})
+				);
+			else {
+				const { key, value } = e.data;
+				window.sessionStorage.setItem(
+					`mwApiCache-${key}`,
+					JSON.stringify(value)
+				);
+				log("Set", key, JSON.stringify(value));
+			}
+		});
+		bc.postMessage("init");
 		const getCache = (t, method, arg, day = 7) => {
 			const _arg = JSON.stringify(arg);
-			const storage = day ? localStorage : sessionStorage;
-			const cache = JSON.parse(storage.getItem(`mwApiCache-${_arg}`));
+			const cache = JSON.parse(
+				window[day ? "localStorage" : "sessionStorage"].getItem(
+					`mwApiCache-${_arg}`
+				)
+			);
 			if (!cache) {
 				const res = method.call(t, arg);
 				res.then(_res => {
-					debug("Set", _arg, JSON.stringify(_res));
-					storage.setItem(
-						`mwApiCache-${_arg}`,
-						JSON.stringify({
-							ver,
-							timestamp: timestamp + 1000 * 60 * 60 * 24 * day,
-							res: _res,
-						})
+					log("Set", _arg, JSON.stringify(_res));
+					const key = `mwApiCache-${_arg}`;
+					const value = {
+						ver,
+						timestamp: timestamp + 1000 * 60 * 60 * 24 * day,
+						res: _res,
+					};
+					window[day ? "localStorage" : "sessionStorage"].setItem(
+						key,
+						JSON.stringify(value)
 					);
+					if (!day) bc.postMessage({ key: _arg, value });
 					return _res;
 				});
 				return res;
 			}
-			debug("Get", _arg);
+			log("Get", _arg);
 			return $()
 				.promise()
 				.then(() => cache.res);
@@ -108,7 +149,7 @@
 						return getCache(t, method, args[0]);
 					if (args[0]?.action === "compare")
 						return getCache(t, method, args[0], 0);
-					debug("Ign", arg);
+					log("Ign", arg);
 					return method.apply(t, args);
 			}
 		};
