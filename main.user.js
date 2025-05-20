@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.1.0
+// @version      3.2.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -21,6 +21,66 @@
 	"use strict";
 	if (new URLSearchParams(window.location.search).get("safemode")) return;
 	const ver = 2;
+	let win;
+	window.XMLHttpRequest = class extends window.XMLHttpRequest {
+		constructor() {
+			super();
+			this.addEventListener("load", () => {
+				const url = new URL(this.responseURL);
+				if (
+					url.hostname.match(
+						/^(?:m?zh|commons|library|en|ja)\.moegirl\.org\.cn$/
+					) &&
+					this.status === 200 &&
+					this.responseText.match(
+						"https://ssl.captcha.qq.com/TCaptcha.js"
+					)
+				) {
+					if (win) win.focus();
+					else {
+						win = window.open(
+							url,
+							"_blank",
+							"width=360,height=360"
+						);
+						win.addEventListener(
+							"DOMContentLoaded",
+							() => {
+								if (
+									![...win.document.scripts].some(
+										({ src }) =>
+											src ===
+											"https://ssl.captcha.qq.com/TCaptcha.js"
+									)
+								) {
+									win.close();
+									win = null;
+								}
+								const id = setInterval(() => {
+									if (
+										!win?.performance
+											.getEntriesByType("navigation")
+											.some(nav => nav.type === "reload")
+									)
+										return;
+									clearInterval(id);
+									if (
+										location.hostname ===
+										win.location.hostname
+									)
+										document.cookie = win.document.cookie;
+									win.close();
+									win = null;
+								}, 50);
+							},
+							{ passive: true, once: true }
+						);
+					}
+				}
+			});
+		}
+	};
+
 	const id = setInterval(async () => {
 		if (!window.mediaWiki?.Api?.prototype) return;
 		clearInterval(id);
