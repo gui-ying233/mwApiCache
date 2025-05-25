@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.2.0
+// @version      3.3.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -138,10 +138,14 @@
 			}
 		});
 		bc.postMessage("init");
-		const getCache = (t, method, arg, day = 7) => {
+		const second = 1000,
+			minute = second * 60,
+			hour = minute * 60,
+			day = hour * 24;
+		const getCache = (t, method, arg, ms = day * 7) => {
 			const _arg = JSON.stringify(arg);
 			const cache = JSON.parse(
-				window[day ? "localStorage" : "sessionStorage"].getItem(
+				window[ms ? "localStorage" : "sessionStorage"].getItem(
 					`mwApiCache-${_arg}`
 				)
 			);
@@ -152,14 +156,14 @@
 					const key = `mwApiCache-${_arg}`;
 					const value = {
 						ver,
-						timestamp: timestamp + 1000 * 60 * 60 * 24 * day,
+						timestamp: timestamp + ms,
 						res: _res,
 					};
-					window[day ? "localStorage" : "sessionStorage"].setItem(
+					window[ms ? "localStorage" : "sessionStorage"].setItem(
 						key,
 						JSON.stringify(value)
 					);
-					if (!day) bc.postMessage({ key: _arg, value });
+					if (!ms) bc.postMessage({ key: _arg, value });
 					return _res;
 				});
 				return res;
@@ -192,11 +196,13 @@
 						}:`,
 						""
 					)}"],"amenableparser":1}`:
-					return getCache(t, method, args[0], 3);
+					return getCache(t, method, args[0], 3 * day);
 				case `{"action":"query","prop":"revisions|info","inprop":"protection|watched","format":"json","pageids":${cfg.get(
 					"wgArticleId"
 				)}}`:
 					return getCache(t, method, args[0], 0);
+				case '{"action":"query","meta":"notifications","formatversion":2,"notfilter":"!read","notprop":"list","notformat":"model","notlimit":"max"}':
+					return getCache(t, method, args[0], 5 * minute - 1);
 				default:
 					if (
 						/^{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}$/.test(
