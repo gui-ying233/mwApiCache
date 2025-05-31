@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.4.0
+// @version      3.4.1
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -113,6 +113,7 @@
 		const timestamp = Date.now();
 		for (const key in window.localStorage) {
 			if (!key.startsWith("mwApiCache-")) continue;
+			if (key === "mwApiCache-Svd") continue;
 			const cache = JSON.parse(window.localStorage.getItem(key));
 			if (cache.timestamp < timestamp || cache.ver !== ver) {
 				log("Del", key);
