@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.3.0
+// @version      3.4.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -21,6 +21,15 @@
 	"use strict";
 	if (new URLSearchParams(window.location.search).get("safemode")) return;
 	const ver = 2;
+	const log = (type, ...args) => {
+		console.debug(
+			`%cmwApiCache-${type}\n${args.join("\n")}`,
+			"border-left:1em solid #4E3DA4;background-color:#3C2D73;color:#D9D9D9;padding:1em"
+		);
+	};
+	log("Beg", new Date().toISOString());
+	log("Ver", ver);
+	log("Svd", +window.localStorage.getItem("mwApiCache-Svd"));
 	let win;
 	window.XMLHttpRequest = class extends window.XMLHttpRequest {
 		constructor() {
@@ -80,7 +89,6 @@
 			});
 		}
 	};
-
 	const id = setInterval(async () => {
 		if (!window.mediaWiki?.Api?.prototype) return;
 		clearInterval(id);
@@ -88,12 +96,6 @@
 		await window.$.ready;
 		const cfg = window.mediaWiki.config;
 		const userName = cfg.get("wgUserName");
-		const log = (type, ...args) => {
-			console.debug(
-				`%cmwApiCache-${type}\n${args.join("\n")}`,
-				"border-left:1em solid #4E3DA4;background-color:#3C2D73;color:#D9D9D9;padding:1em"
-			);
-		};
 		window.addEventListener(
 			"storage",
 			e => {
@@ -168,6 +170,10 @@
 				});
 				return res;
 			}
+			window.localStorage.setItem(
+				"mwApiCache-Svd",
+				+window.localStorage.getItem("mwApiCache-Svd") + 1
+			);
 			log("Get", _arg);
 			return $()
 				.promise()
