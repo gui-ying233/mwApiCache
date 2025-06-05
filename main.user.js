@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.4.1
+// @version      3.5.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -189,6 +189,7 @@
 				case `{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`:
 				case '{"action":"paraminfo","modules":"main","helpformat":"html","uselang":"zh"}':
 				case '{"action":"paraminfo","modules":"json","helpformat":"html","uselang":"zh"}':
+				case '{"action":"query","meta":"siteinfo","siprop":["general","namespaces"]}':
 					return getCache(t, method, args[0]);
 				case `{"action":"query","meta":"allmessages","ammessages":["Editnotice-${cfg.get(
 					"wgNamespaceNumber"
