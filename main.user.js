@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.5.0
+// @version      3.6.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -180,8 +180,8 @@
 				.promise()
 				.then(() => cache.res);
 		};
-		const apiFilter = (t, method, args) => {
-			const arg = JSON.stringify(args[0]);
+		const apiFilter = (t, method, [payload, ...args]) => {
+			const arg = JSON.stringify(payload);
 			switch (arg) {
 				case `{"action":"query","ususers":"${userName}","meta":["userinfo","siteinfo"],"list":["users"],"uiprop":["rights"],"siprop":["specialpagealiases"],"usprop":["blockinfo"]}`:
 				case '{"action":"query","meta":"siteinfo","siprop":"specialpagealiases","formatversion":2,"uselang":"content","maxage":3600}':
@@ -190,27 +190,22 @@
 				case '{"action":"paraminfo","modules":"main","helpformat":"html","uselang":"zh"}':
 				case '{"action":"paraminfo","modules":"json","helpformat":"html","uselang":"zh"}':
 				case '{"action":"query","meta":"siteinfo","siprop":["general","namespaces"]}':
-					return getCache(t, method, args[0]);
-				case `{"action":"query","meta":"allmessages","ammessages":["Editnotice-${cfg.get(
-					"wgNamespaceNumber"
-				)}","Editnotice-${cfg.get("wgNamespaceNumber")}-${cfg
-					.get("wgPageName")
-					.replaceAll("_", " ")
-					.replace(
-						`${
-							cfg.get("wgFormattedNamespaces")[
-								cfg.get("wgNamespaceNumber")
-							]
-						}:`,
-						""
-					)}"],"amenableparser":1}`:
-					return getCache(t, method, args[0], 3 * day);
-				case `{"action":"query","prop":"revisions|info","inprop":"protection|watched","format":"json","pageids":${cfg.get(
-					"wgArticleId"
-				)}}`:
-					return getCache(t, method, args[0], 0);
 				case '{"action":"query","meta":"notifications","formatversion":2,"notfilter":"!read","notprop":"list","notformat":"model","notlimit":"max"}':
-					return getCache(t, method, args[0], 5 * minute - 1);
+					return getCache(t, method, payload, 5 * minute - 1);
+				case `{"action":"query","prop":"revisions","titles":"${cfg.get(
+					"wgPageName"
+				)}","rvprop":"content"}`:
+				case `{"action":"parse","page":"${cfg.get(
+					"wgPageName"
+				)}","prop":"wikitext|langlinks|categories|templates|images|sections","format":"json"}`:
+					return getCache(
+						t,
+						method,
+						Object.assign(payload, {
+							requestid: `mwApiCacheV${ver}-wgCurRevisionId:${wgCurRevisionId}`,
+						}),
+						0
+					);
 				default:
 					if (
 						/^{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}$/.test(
@@ -220,11 +215,33 @@
 							arg
 						)
 					)
-						return getCache(t, method, args[0]);
-					if (args[0]?.action === "compare")
-						return getCache(t, method, args[0], 0);
+						return getCache(t, method, payload);
+					if (
+						/^{"action":"query","meta":"allmessages","ammessages":\["Editnotice-\d+","Editnotice-\d+-.+"],"amenableparser":1}$/.test(
+							arg
+						)
+					)
+						return getCache(t, method, payload, 3 * day);
+					if (
+						payload?.action === "compare" ||
+						/^{"action":"query","prop":"revisions\|info","inprop":"protection\|watched","format":"json","pageids":\d+}$/.test(
+							arg
+						)
+					)
+						return getCache(t, method, payload, 0);
+					if (
+						/^{"action":"parse","page":".+","prop":"wikitext\|langlinks\|categories\|templates\|images\|sections","format":"json"}$/
+					)
+						return getCache(
+							t,
+							method,
+							Object.assign(payload, {
+								requestid: `mwApiCacheV${ver}-timestamp:${timestamp}`,
+							}),
+							0
+						);
 					log("Ign", arg);
-					return method.apply(t, args);
+					return method.apply(t, [payload, ...args]);
 			}
 		};
 		window.mediaWiki.Api.prototype.get = function (...args) {
