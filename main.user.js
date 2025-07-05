@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.6.4
+// @version      3.7.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -234,22 +234,6 @@
 						)
 					)
 						return getCache(t, method, payload, 0);
-					if (
-						window?.InPageEdit?.preference
-							?.get?.("plugins")
-							?.includes("edit-any-page.js") &&
-						/^{"action":"parse","page":".+","prop":"wikitext\|langlinks\|categories\|templates\|images\|sections","format":"json"}$/.test(
-							arg
-						)
-					)
-						return getCache(
-							t,
-							method,
-							Object.assign(payload, {
-								requestid: `mwApiCacheV${ver}-timestamp:${timestamp}`,
-							}),
-							0
-						);
 					log("Ign", arg);
 					return method.apply(t, [payload, ...args]);
 			}
