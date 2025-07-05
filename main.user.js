@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.6.2
+// @version      3.6.3
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -100,11 +100,12 @@
 			"storage",
 			e => {
 				if (!e.key.startsWith("mwApiCache-")) return;
-				if (
-					e.newValue &&
-					(e.key !== "mwApiCache-Svd" ||
-						+e.newValue > (+e.oldValue ?? 0))
-				) {
+				if (e.newValue) {
+					if (
+						e.key === "mwApiCache-Svd" &&
+						+e.newValue <= (+e.oldValue ?? 0)
+					)
+						return;
 					e.storageArea.setItem(e.key, e.newValue);
 					log("Set", e.key, e.newValue);
 				} else {
