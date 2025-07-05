@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.7.0
+// @version      3.7.1
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -195,22 +195,27 @@
 				case '{"action":"paraminfo","modules":"main","helpformat":"html","uselang":"zh"}':
 				case '{"action":"paraminfo","modules":"json","helpformat":"html","uselang":"zh"}':
 				case '{"action":"query","meta":"siteinfo","siprop":["general","namespaces"]}':
+					return getCache(t, method, payload);
+				case `{"action":"query","meta":"allmessages","ammessages":["Editnotice-${cfg.get(
+					"wgNamespaceNumber"
+				)}","Editnotice-${cfg.get("wgNamespaceNumber")}-${cfg
+					.get("wgPageName")
+					.replaceAll("_", " ")
+					.replace(
+						`${
+							cfg.get("wgFormattedNamespaces")[
+								cfg.get("wgNamespaceNumber")
+							]
+						}:`,
+						""
+					)}"],"amenableparser":1}`:
+					return getCache(t, method, payload, 3 * day);
+				case `{"action":"query","prop":"revisions|info","inprop":"protection|watched","format":"json","pageids":${cfg.get(
+					"wgArticleId"
+				)}}`:
+					return getCache(t, method, payload, 0);
 				case '{"action":"query","meta":"notifications","formatversion":2,"notfilter":"!read","notprop":"list","notformat":"model","notlimit":"max"}':
 					return getCache(t, method, payload, 5 * minute - 1);
-				case `{"action":"query","prop":"revisions","titles":"${cfg.get(
-					"wgPageName"
-				)}","rvprop":"content"}`:
-				case `{"action":"parse","page":"${cfg.get(
-					"wgPageName"
-				)}","prop":"wikitext|langlinks|categories|templates|images|sections","format":"json"}`:
-					return getCache(
-						t,
-						method,
-						Object.assign(payload, {
-							requestid: `mwApiCacheV${ver}-wgCurRevisionId:${wgCurRevisionId}`,
-						}),
-						0
-					);
 				default:
 					if (
 						/^{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}$/.test(
