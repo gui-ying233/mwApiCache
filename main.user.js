@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.7.1
+// @version      3.8
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -158,7 +158,16 @@
 				)
 			);
 			if (!cache) {
-				const res = method.call(t, arg);
+				const res = method.call(
+					t,
+					Object.assign(
+						{
+							maxage: ms / 1000,
+							smaxage: ms / 1000,
+						},
+						arg
+					)
+				);
 				res.then(_res => {
 					log("Set", _arg, JSON.stringify(_res));
 					const key = `mwApiCache-${_arg}`;
@@ -181,9 +190,11 @@
 				+window.localStorage.getItem("mwApiCache-Svd") + 1
 			);
 			log("Get", _arg);
-			return $()
+			const promise = $()
 				.promise()
 				.then(() => cache.res);
+			promise.abort = () => {};
+			return promise;
 		};
 		const apiFilter = (t, method, [payload, ...args]) => {
 			const arg = JSON.stringify(payload);
@@ -239,6 +250,13 @@
 						)
 					)
 						return getCache(t, method, payload, 0);
+					if (payload?.maxage ?? payload?.smaxage)
+						return getCache(
+							t,
+							method,
+							payload,
+							(payload?.maxage ?? payload?.smaxage) * 1000
+						);
 					log("Ign", arg);
 					return method.apply(t, [payload, ...args]);
 			}
