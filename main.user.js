@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.8.0
+// @version      3.8.1
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -162,8 +162,8 @@
 					t,
 					Object.assign(
 						{
-							maxage: ms / 1000,
-							smaxage: ms / 1000,
+							maxage: Math.round(ms / second),
+							smaxage: Math.round(ms / second),
 						},
 						arg
 					)
@@ -255,7 +255,7 @@
 							t,
 							method,
 							payload,
-							(payload?.maxage ?? payload?.smaxage) * 1000
+							(payload?.maxage ?? payload?.smaxage) * second
 						);
 					log("Ign", arg);
 					return method.apply(t, [payload, ...args]);
