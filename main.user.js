@@ -269,6 +269,7 @@
 								"Del",
 								`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`
 							);
+					log("Ign", arg);
 					return method.apply(t, [payload, ...args]);
 			}
 		};
