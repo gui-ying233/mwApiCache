@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.8.1
+// @version      3.8.2
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -257,7 +257,18 @@
 							payload,
 							(payload?.maxage ?? payload?.smaxage) * second
 						);
-					log("Ign", arg);
+					if (
+						payload?.action === "edit" &&
+						payload?.title ===
+							`User:${userName}/codemirror-mediawiki.json`
+					)
+						localStorage.removeItem(
+							`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`
+						),
+							log(
+								"Del",
+								`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`
+							);
 					return method.apply(t, [payload, ...args]);
 			}
 		};
