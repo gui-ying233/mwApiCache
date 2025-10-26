@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.8.2
+// @version      3.9.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -96,6 +96,7 @@
 		await window.$.ready;
 		const cfg = window.mediaWiki.config;
 		const userName = cfg.get("wgUserName");
+		const pending = new Map();
 		window.addEventListener(
 			"storage",
 			e => {
@@ -198,6 +199,11 @@
 		};
 		const apiFilter = (t, method, [payload, ...args]) => {
 			const arg = JSON.stringify(payload);
+			if (pending.has(arg)) {
+				log("Dup", arg);
+				return pending.get(arg);
+			}
+			let result;
 			switch (arg) {
 				case `{"action":"query","ususers":"${userName}","meta":["userinfo","siteinfo"],"list":["users"],"uiprop":["rights"],"siprop":["specialpagealiases"],"usprop":["blockinfo"]}`:
 				case '{"action":"query","meta":"siteinfo","siprop":"specialpagealiases","formatversion":2,"uselang":"content","maxage":3600}':
@@ -206,7 +212,8 @@
 				case '{"action":"paraminfo","modules":"main","helpformat":"html","uselang":"zh"}':
 				case '{"action":"paraminfo","modules":"json","helpformat":"html","uselang":"zh"}':
 				case '{"action":"query","meta":"siteinfo","siprop":["general","namespaces"]}':
-					return getCache(t, method, payload);
+					result = getCache(t, method, payload);
+					break;
 				case `{"action":"query","meta":"allmessages","ammessages":["Editnotice-${cfg.get(
 					"wgNamespaceNumber"
 				)}","Editnotice-${cfg.get("wgNamespaceNumber")}-${cfg
@@ -220,13 +227,16 @@
 						}:`,
 						""
 					)}"],"amenableparser":1}`:
-					return getCache(t, method, payload, 3 * day);
+					result = getCache(t, method, payload, 3 * day);
+					break;
 				case `{"action":"query","prop":"revisions|info","inprop":"protection|watched","format":"json","pageids":${cfg.get(
 					"wgArticleId"
 				)}}`:
-					return getCache(t, method, payload, 0);
+					result = getCache(t, method, payload, 0);
+					break;
 				case '{"action":"query","meta":"notifications","formatversion":2,"notfilter":"!read","notprop":"list","notformat":"model","notlimit":"max"}':
-					return getCache(t, method, payload, 5 * minute - 1);
+					result = getCache(t, method, payload, 5 * minute - 1);
+					break;
 				default:
 					if (
 						/^{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}$/.test(
@@ -235,28 +245,43 @@
 						/^{"action":"parse","text":"<span id=\\"mw_editnotice_test_var\\".+?","preview":true,"disablelimitreport":true,"disableeditsection":true,"disabletoc":true}$/.test(
 							arg
 						)
-					)
-						return getCache(t, method, payload);
+					) {
+						result = getCache(t, method, payload);
+						break;
+					}
 					if (
 						/^{"action":"query","meta":"allmessages","ammessages":\["Editnotice-\d+","Editnotice-\d+-.+"],"amenableparser":1}$/.test(
 							arg
 						)
-					)
-						return getCache(t, method, payload, 3 * day);
+					) {
+						result = getCache(t, method, payload, 3 * day);
+						break;
+					}
 					if (
 						payload?.action === "compare" ||
 						/^{"action":"query","prop":"revisions\|info","inprop":"protection\|watched","format":"json","pageids":\d+}$/.test(
 							arg
 						)
-					)
-						return getCache(t, method, payload, 0);
-					if (payload?.maxage ?? payload?.smaxage)
-						return getCache(
+					) {
+						result = getCache(t, method, payload, 0);
+						break;
+					}
+					if (
+						payload?.action === "paraminfo" ||
+						payload?.action === "help"
+					) {
+						result = getCache(t, method, payload, 30 * day);
+						break;
+					}
+					if (payload?.maxage ?? payload?.smaxage) {
+						result = getCache(
 							t,
 							method,
 							payload,
 							(payload?.maxage ?? payload?.smaxage) * second
 						);
+						break;
+					}
 					if (
 						payload?.action === "edit" &&
 						payload?.title ===
@@ -270,8 +295,11 @@
 								`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`
 							);
 					log("Ign", arg);
-					return method.apply(t, [payload, ...args]);
+					result = method.apply(t, [payload, ...args]);
 			}
+			pending.set(arg, result);
+			result.always(() => pending.delete(arg));
+			return result;
 		};
 		window.mediaWiki.Api.prototype.get = function (...args) {
 			return apiFilter(this, originalMediaWikiApiPost, args);
