@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.9.0
+// @version      3.10.0
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -24,74 +24,16 @@
 	const log = (type, ...args) => {
 		console.debug(
 			`%cmwApiCache-${type}\n${args.join("\n")}`,
-			"border-left:1em solid #4E3DA4;background-color:#3C2D73;color:#D9D9D9;padding:1em"
+			"border-left:1em solid #4E3DA4;background-color:#3C2D73;color:#D9D9D9;padding:1em",
 		);
 	};
 	log("Beg", new Date().toISOString());
 	log("Ver", ver);
 	log("Svd", +window.localStorage.getItem("mwApiCache-Svd"));
-	let win;
-	window.XMLHttpRequest = class extends window.XMLHttpRequest {
-		constructor() {
-			super();
-			this.addEventListener("load", () => {
-				const url = new URL(this.responseURL);
-				if (
-					url.hostname.match(
-						/^(?:m?zh|commons|library|en|ja)\.moegirl\.org\.cn$/
-					) &&
-					this.status === 200 &&
-					this.responseText.match(
-						"https://ssl.captcha.qq.com/TCaptcha.js"
-					)
-				) {
-					if (win) win.focus();
-					else {
-						win = window.open(
-							url,
-							"_blank",
-							"width=360,height=360"
-						);
-						win.addEventListener(
-							"DOMContentLoaded",
-							() => {
-								if (
-									![...win.document.scripts].some(
-										({ src }) =>
-											src ===
-											"https://ssl.captcha.qq.com/TCaptcha.js"
-									)
-								) {
-									win.close();
-									win = null;
-								}
-								const id = setInterval(() => {
-									if (
-										!win?.performance
-											.getEntriesByType("navigation")
-											.some(nav => nav.type === "reload")
-									)
-										return;
-									clearInterval(id);
-									if (
-										location.hostname ===
-										win.location.hostname
-									)
-										document.cookie = win.document.cookie;
-									win.close();
-									win = null;
-								}, 50);
-							},
-							{ passive: true, once: true }
-						);
-					}
-				}
-			});
-		}
-	};
 	const id = setInterval(async () => {
 		if (!window.mediaWiki?.Api?.prototype) return;
 		clearInterval(id);
+		const originalMediaWikiApiGet = window.mediaWiki.Api.prototype.get;
 		const originalMediaWikiApiPost = window.mediaWiki.Api.prototype.post;
 		await window.$.ready;
 		const cfg = window.mediaWiki.config;
@@ -114,12 +56,12 @@
 					log("Del", e.key);
 				}
 			},
-			{ passive: true }
+			{ passive: true },
 		);
 		const timestamp = Date.now();
 		for (const key in window.localStorage) {
-			if (!key.startsWith("mwApiCache-")) continue;
-			if (key === "mwApiCache-Svd") continue;
+			if (!key.startsWith("mwApiCache-") || key === "mwApiCache-Svd")
+				continue;
 			const cache = JSON.parse(window.localStorage.getItem(key));
 			if (cache.timestamp < timestamp || cache.ver !== ver) {
 				log("Del", key);
@@ -135,13 +77,13 @@
 						bc.postMessage({
 							key: key.replace("mwApiCache-", ""),
 							value: JSON.parse(sessionStorage.getItem(key)),
-						})
+						}),
 				);
 			else {
 				const { key, value } = e.data;
 				window.sessionStorage.setItem(
 					`mwApiCache-${key}`,
-					JSON.stringify(value)
+					JSON.stringify(value),
 				);
 				log("Set", key, JSON.stringify(value));
 			}
@@ -152,13 +94,17 @@
 			hour = minute * 60,
 			day = hour * 24;
 		const getCache = (t, method, arg, ms = day * 7) => {
+			const timestamp = Date.now();
 			const _arg = JSON.stringify(arg);
+			const key = `mwApiCache-${_arg}`;
 			const cache = JSON.parse(
-				window[ms ? "localStorage" : "sessionStorage"].getItem(
-					`mwApiCache-${_arg}`
-				)
+				window[ms ? "localStorage" : "sessionStorage"].getItem(key),
 			);
-			if (!cache) {
+			if (cache?.timestamp < timestamp || cache?.ver !== ver) {
+				if (cache) {
+					log("Del", key);
+					window.localStorage.removeItem(key);
+				}
 				const res = method.call(
 					t,
 					Object.assign(
@@ -166,12 +112,11 @@
 							maxage: Math.round(ms / second),
 							smaxage: Math.round(ms / second),
 						},
-						arg
-					)
+						arg,
+					),
 				);
 				res.then(_res => {
 					log("Set", _arg, JSON.stringify(_res));
-					const key = `mwApiCache-${_arg}`;
 					const value = {
 						ver,
 						timestamp: timestamp + ms,
@@ -179,7 +124,7 @@
 					};
 					window[ms ? "localStorage" : "sessionStorage"].setItem(
 						key,
-						JSON.stringify(value)
+						JSON.stringify(value),
 					);
 					if (!ms) bc.postMessage({ key: _arg, value });
 					return _res;
@@ -188,7 +133,7 @@
 			}
 			window.localStorage.setItem(
 				"mwApiCache-Svd",
-				+window.localStorage.getItem("mwApiCache-Svd") + 1
+				+window.localStorage.getItem("mwApiCache-Svd") + 1,
 			);
 			log("Get", _arg);
 			const promise = $()
@@ -215,7 +160,7 @@
 					result = getCache(t, method, payload);
 					break;
 				case `{"action":"query","meta":"allmessages","ammessages":["Editnotice-${cfg.get(
-					"wgNamespaceNumber"
+					"wgNamespaceNumber",
 				)}","Editnotice-${cfg.get("wgNamespaceNumber")}-${cfg
 					.get("wgPageName")
 					.replaceAll("_", " ")
@@ -225,12 +170,12 @@
 								cfg.get("wgNamespaceNumber")
 							]
 						}:`,
-						""
+						"",
 					)}"],"amenableparser":1}`:
 					result = getCache(t, method, payload, 3 * day);
 					break;
 				case `{"action":"query","prop":"revisions|info","inprop":"protection|watched","format":"json","pageids":${cfg.get(
-					"wgArticleId"
+					"wgArticleId",
 				)}}`:
 					result = getCache(t, method, payload, 0);
 					break;
@@ -240,10 +185,10 @@
 				default:
 					if (
 						/^{"action":"query","meta":"allmessages","ammessages":\[".*?"\],"amlang":"zh","formatversion":2}$/.test(
-							arg
+							arg,
 						) ||
 						/^{"action":"parse","text":"<span id=\\"mw_editnotice_test_var\\".+?","preview":true,"disablelimitreport":true,"disableeditsection":true,"disabletoc":true}$/.test(
-							arg
+							arg,
 						)
 					) {
 						result = getCache(t, method, payload);
@@ -251,7 +196,7 @@
 					}
 					if (
 						/^{"action":"query","meta":"allmessages","ammessages":\["Editnotice-\d+","Editnotice-\d+-.+"],"amenableparser":1}$/.test(
-							arg
+							arg,
 						)
 					) {
 						result = getCache(t, method, payload, 3 * day);
@@ -260,7 +205,7 @@
 					if (
 						payload?.action === "compare" ||
 						/^{"action":"query","prop":"revisions\|info","inprop":"protection\|watched","format":"json","pageids":\d+}$/.test(
-							arg
+							arg,
 						)
 					) {
 						result = getCache(t, method, payload, 0);
@@ -278,7 +223,7 @@
 							t,
 							method,
 							payload,
-							(payload?.maxage ?? payload?.smaxage) * second
+							(payload?.maxage ?? payload?.smaxage) * second,
 						);
 						break;
 					}
@@ -287,13 +232,13 @@
 						payload?.title ===
 							`User:${userName}/codemirror-mediawiki.json`
 					)
-						localStorage.removeItem(
-							`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`
+						(localStorage.removeItem(
+							`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`,
 						),
 							log(
 								"Del",
-								`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`
-							);
+								`mwApiCache-{"action":"query","prop":"revisions","titles":"User:${userName}/codemirror-mediawiki.json","rvprop":"content","rvlimit":1}`,
+							));
 					log("Ign", arg);
 					result = method.apply(t, [payload, ...args]);
 			}
@@ -302,7 +247,7 @@
 			return result;
 		};
 		window.mediaWiki.Api.prototype.get = function (...args) {
-			return apiFilter(this, originalMediaWikiApiPost, args);
+			return apiFilter(this, originalMediaWikiApiGet, args);
 		};
 		window.mediaWiki.Api.prototype.post = function (...args) {
 			return apiFilter(this, originalMediaWikiApiPost, args);
