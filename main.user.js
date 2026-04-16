@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.10.0
+// @version      3.10.1
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -247,7 +247,7 @@
 			return result;
 		};
 		window.mediaWiki.Api.prototype.get = function (...args) {
-			return apiFilter(this, originalMediaWikiApiGet, args);
+			return apiFilter(this, originalMediaWikiApiPost, args);
 		};
 		window.mediaWiki.Api.prototype.post = function (...args) {
 			return apiFilter(this, originalMediaWikiApiPost, args);
