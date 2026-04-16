@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.10.1
+// @version      3.10.2
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
 // @match        zh.moegirl.org.cn/*
 // @match        mzh.moegirl.org.cn/*
+// @match        mobile.moegirl.org.cn/*
 // @match        commons.moegirl.org.cn/*
 // @match        library.moegirl.org.cn/*
 // @match        en.moegirl.org.cn/*
