@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         萌娘百科缓存部分Api请求
 // @namespace    https://github.com/gui-ying233/mwApiCache
-// @version      3.10.2
+// @version      3.10.3
 // @description  缓存部分Api请求结果以提升速度减少WAF几率
 // @author       鬼影233
 // @license      MIT
@@ -98,13 +98,12 @@
 			const timestamp = Date.now();
 			const _arg = JSON.stringify(arg);
 			const key = `mwApiCache-${_arg}`;
-			const cache = JSON.parse(
-				window[ms ? "localStorage" : "sessionStorage"].getItem(key),
-			);
-			if (cache?.timestamp < timestamp || cache?.ver !== ver) {
+			const storage = ms ? window.localStorage : window.sessionStorage;
+			const cache = JSON.parse(storage.getItem(key));
+			if (cache?.ver !== ver || (ms && cache?.timestamp < timestamp)) {
 				if (cache) {
 					log("Del", key);
-					window.localStorage.removeItem(key);
+					storage.removeItem(key);
 				}
 				const res = method.call(
 					t,
@@ -123,18 +122,15 @@
 						timestamp: timestamp + ms,
 						res: _res,
 					};
-					window[ms ? "localStorage" : "sessionStorage"].setItem(
-						key,
-						JSON.stringify(value),
-					);
+					storage.setItem(key, JSON.stringify(value));
 					if (!ms) bc.postMessage({ key: _arg, value });
 					return _res;
 				});
 				return res;
 			}
-			window.localStorage.setItem(
+			storage.setItem(
 				"mwApiCache-Svd",
-				+window.localStorage.getItem("mwApiCache-Svd") + 1,
+				+storage.getItem("mwApiCache-Svd") + 1,
 			);
 			log("Get", _arg);
 			const promise = $()
